@@ -29,7 +29,7 @@ async def simulate_sensor_data():
     while True:
         db: Session = SessionLocal()
         try:
-            pens = db.query(models.Pen).filter(models.Pen.is_active == True).all()
+            pens = db.query(models.Pen).filter(models.Pen.is_active == True, models.Pen.is_monitoring == True).all()
             
             updates = []
             for pen in pens:

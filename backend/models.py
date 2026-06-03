@@ -12,6 +12,7 @@ class Pen(Base):
     location = Column(String(255), default="")
     sector = Column(String(255), default="")
     is_active = Column(Boolean, default=True)
+    is_monitoring = Column(Boolean, default=False)
     last_status = Column(String(50), default="optimal")  # optimal | warning | critical
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

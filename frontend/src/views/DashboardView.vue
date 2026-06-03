@@ -28,9 +28,22 @@
       >
         <div class="card-header">
           <h3 class="pen-name">{{ pen.name }}</h3>
-          <span class="badge" :class="pen.last_status">
-            <span class="dot"></span> {{ pen.last_status }}
-          </span>
+          <div class="header-actions">
+            <span v-if="!pen.is_monitoring" class="badge" style="background: var(--c-bg); color: var(--c-text-muted);">
+              OFFLINE
+            </span>
+            <span v-else class="badge" :class="pen.last_status">
+              <span class="dot"></span> {{ pen.last_status }}
+            </span>
+            <button 
+              class="power-btn" 
+              :class="{'is-on': pen.is_monitoring}" 
+              @click="togglePower(pen)"
+              :title="pen.is_monitoring ? 'Shutdown' : 'Start Monitoring'"
+            >
+              <PowerIcon class="icon-sm" />
+            </button>
+          </div>
         </div>
 
         <div class="metrics" v-if="pen.latest_reading">
@@ -52,11 +65,13 @@
         </div>
 
         <!-- Simulated history data for chart -->
-        <MiniChart 
-          v-if="pen.latest_reading"
-          :data="generateChartData(pen.latest_reading.temperature)" 
-          :color="getStatusColor(pen.last_status)"
-        />
+        <div :class="{'opacity-50': !pen.is_monitoring}">
+          <MiniChart 
+            v-if="pen.latest_reading"
+            :data="generateChartData(pen.latest_reading.temperature)" 
+            :color="getStatusColor(pen.last_status)"
+          />
+        </div>
 
         <div class="card-footer">
           <router-link :to="`/pens/${pen.id}`" class="btn-outline w-full text-center">
@@ -79,6 +94,7 @@
 import { onMounted } from 'vue'
 import { usePenStore } from '@/stores/pens'
 import MiniChart from '@/components/charts/MiniChart.vue'
+import { PowerIcon } from 'lucide-vue-next'
 
 const penStore = usePenStore()
 
@@ -109,6 +125,14 @@ const generateChartData = (currentVal) => {
 const addPen = async () => {
   // In a real app, this would open a modal
   alert('Feature to add new pen will be implemented here')
+}
+
+const togglePower = async (pen) => {
+  if (pen.is_monitoring) {
+    await penStore.shutdownPen(pen.id)
+  } else {
+    await penStore.startMonitoring(pen.id)
+  }
 }
 </script>
 
@@ -162,6 +186,39 @@ const addPen = async () => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.power-btn {
+  background: none;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.power-btn:hover {
+  background: var(--c-bg);
+}
+
+.power-btn.is-on {
+  color: var(--c-optimal);
+  border-color: var(--c-optimal);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.opacity-50 {
+  opacity: 0.5;
 }
 
 .pen-name {

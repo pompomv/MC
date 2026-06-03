@@ -40,6 +40,44 @@ export const usePenStore = defineStore('pens', {
       }
     },
     
+    async fetchPenReadings(id, hours = 24) {
+      try {
+        const response = await api.get(`/pens/${id}/readings?hours=${hours}&limit=100`)
+        return response.data
+      } catch (err) {
+        console.error(`Failed to fetch readings for pen ${id}:`, err)
+        return []
+      }
+    },
+
+    async fetchPenLogs(id, limit = 20) {
+      try {
+        const response = await api.get(`/pens/${id}/logs?limit=${limit}`)
+        return response.data
+      } catch (err) {
+        console.error(`Failed to fetch logs for pen ${id}:`, err)
+        return []
+      }
+    },
+
+    async startMonitoring(id) {
+      try {
+        await api.post(`/pens/${id}/monitor`)
+        await this.fetchPens() // Refresh list to get updated is_monitoring states
+      } catch (err) {
+        console.error(`Failed to start monitoring pen ${id}:`, err)
+      }
+    },
+
+    async shutdownPen(id) {
+      try {
+        await api.post(`/pens/${id}/shutdown`)
+        await this.fetchPens() // Refresh list
+      } catch (err) {
+        console.error(`Failed to shutdown pen ${id}:`, err)
+      }
+    },
+    
     updatePenDataFromSocket(data) {
       // data is an array of updates
       data.forEach(update => {

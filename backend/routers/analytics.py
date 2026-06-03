@@ -110,13 +110,17 @@ def get_raw_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     filter_text: Optional[str] = None,
+    pen_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     query = (
         db.query(models.SensorReading, models.Pen)
         .join(models.Pen, models.SensorReading.pen_id == models.Pen.id)
-        .order_by(models.SensorReading.timestamp.desc())
     )
+    if pen_id:
+        query = query.filter(models.SensorReading.pen_id == pen_id)
+        
+    query = query.order_by(models.SensorReading.timestamp.desc())
 
     all_rows = query.all()
     total = len(all_rows)
@@ -159,19 +163,22 @@ def get_raw_logs(
 @router.get("/export/csv")
 def export_csv(
     period: str = Query("24h"),
+    pen_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     now = datetime.datetime.utcnow()
     hours = 24 if period == "24h" else (7 * 24 if period == "7d" else 30 * 24)
     since = now - datetime.timedelta(hours=hours)
 
-    rows = (
+    query = (
         db.query(models.SensorReading, models.Pen)
         .join(models.Pen, models.SensorReading.pen_id == models.Pen.id)
         .filter(models.SensorReading.timestamp >= since)
-        .order_by(models.SensorReading.timestamp.desc())
-        .all()
     )
+    if pen_id:
+        query = query.filter(models.SensorReading.pen_id == pen_id)
+
+    rows = query.order_by(models.SensorReading.timestamp.desc()).all()
 
     output = io.StringIO()
     writer = csv.writer(output)

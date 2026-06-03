@@ -26,6 +26,7 @@ def list_pens(db: Session = Depends(get_db)):
                 location=pen.location,
                 sector=pen.sector,
                 is_active=pen.is_active,
+                is_monitoring=pen.is_monitoring,
                 last_status=pen.last_status,
                 created_at=pen.created_at,
                 latest_reading=latest,
@@ -54,7 +55,7 @@ def create_pen(pen_in: schemas.PenCreate, db: Session = Depends(get_db)):
     db.refresh(pen)
     return schemas.PenDetailResponse(
         id=pen.id, name=pen.name, location=pen.location, sector=pen.sector,
-        is_active=pen.is_active, last_status=pen.last_status, created_at=pen.created_at,
+        is_active=pen.is_active, is_monitoring=pen.is_monitoring, last_status=pen.last_status, created_at=pen.created_at,
         latest_reading=None, threshold=pen.threshold,
     )
 
@@ -72,7 +73,7 @@ def get_pen(pen_id: int, db: Session = Depends(get_db)):
     )
     return schemas.PenDetailResponse(
         id=pen.id, name=pen.name, location=pen.location, sector=pen.sector,
-        is_active=pen.is_active, last_status=pen.last_status, created_at=pen.created_at,
+        is_active=pen.is_active, is_monitoring=pen.is_monitoring, last_status=pen.last_status, created_at=pen.created_at,
         latest_reading=latest, threshold=pen.threshold,
     )
 
@@ -95,7 +96,36 @@ def delete_pen(pen_id: int, db: Session = Depends(get_db)):
     if not pen:
         raise HTTPException(status_code=404, detail="Kandang tidak ditemukan")
     pen.is_active = False
+    pen.is_monitoring = False
     db.commit()
+
+
+@router.post("/{pen_id}/monitor", response_model=schemas.PenResponse)
+def start_monitoring(pen_id: int, db: Session = Depends(get_db)):
+    pen = db.query(models.Pen).filter(models.Pen.id == pen_id).first()
+    if not pen:
+        raise HTTPException(status_code=404, detail="Kandang tidak ditemukan")
+    
+    # Turn off all other pens
+    db.query(models.Pen).update({"is_monitoring": False})
+    
+    # Turn on this pen
+    pen.is_monitoring = True
+    db.commit()
+    db.refresh(pen)
+    return pen
+
+
+@router.post("/{pen_id}/shutdown", response_model=schemas.PenResponse)
+def stop_monitoring(pen_id: int, db: Session = Depends(get_db)):
+    pen = db.query(models.Pen).filter(models.Pen.id == pen_id).first()
+    if not pen:
+        raise HTTPException(status_code=404, detail="Kandang tidak ditemukan")
+    
+    pen.is_monitoring = False
+    db.commit()
+    db.refresh(pen)
+    return pen
 
 
 @router.get("/{pen_id}/readings", response_model=List[schemas.SensorReadingResponse])

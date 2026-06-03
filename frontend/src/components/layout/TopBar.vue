@@ -5,7 +5,7 @@
       <h1 v-else-if="$route.name === 'analytics'">Analytics & History</h1>
       <h1 v-else-if="$route.name === 'settings'">Threshold Configuration <span class="badge" style="background: var(--c-accent); color: var(--c-sidebar-bg);">SYSTEM CONTROL</span></h1>
       <div v-else class="breadcrumbs">
-        <span class="text-muted">Monitoring</span> <span class="separator">/</span> <strong>Kandang A</strong>
+        <span class="text-muted">Monitoring</span> <span class="separator">/</span> <strong>{{ penStore.currentPen?.name || 'Loading...' }}</strong>
       </div>
     </div>
     
@@ -28,6 +28,9 @@
 
 <script setup>
 import { Bell } from 'lucide-vue-next'
+import { usePenStore } from '@/stores/pens'
+
+const penStore = usePenStore()
 </script>
 
 <style scoped>

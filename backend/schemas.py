@@ -24,6 +24,7 @@ class PenUpdate(BaseModel):
 class PenResponse(PenBase):
     id: int
     is_active: bool
+    is_monitoring: bool
     last_status: str
     created_at: datetime
 
