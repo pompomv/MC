@@ -8,11 +8,11 @@ class Pen(Base):
     __tablename__ = "pens"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    location = Column(String, default="")
-    sector = Column(String, default="")
+    name = Column(String(255), nullable=False)
+    location = Column(String(255), default="")
+    sector = Column(String(255), default="")
     is_active = Column(Boolean, default=True)
-    last_status = Column(String, default="optimal")  # optimal | warning | critical
+    last_status = Column(String(50), default="optimal")  # optimal | warning | critical
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     readings = relationship("SensorReading", back_populates="pen", cascade="all, delete-orphan")
@@ -37,8 +37,8 @@ class ActivityLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     pen_id = Column(Integer, ForeignKey("pens.id"), nullable=False)
-    message = Column(String, nullable=False)
-    level = Column(String, default="info")  # info | warning | critical
+    message = Column(String(255), nullable=False)
+    level = Column(String(50), default="info")  # info | warning | critical
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
     pen = relationship("Pen", back_populates="logs")
@@ -56,6 +56,6 @@ class Threshold(Base):
     alert_critical = Column(Boolean, default=True)
     alert_warning = Column(Boolean, default=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_by = Column(String, default="system")
+    updated_by = Column(String(100), default="system")
 
     pen = relationship("Pen", back_populates="threshold")
