@@ -11,7 +11,7 @@
         <span>Dashboard</span>
       </router-link>
       
-      <router-link to="/pens/1" class="nav-item" :class="{ active: $route.name === 'pen-detail' }">
+      <router-link to="/pens" class="nav-item" :class="{ active: $route.name === 'pens-list' || $route.name === 'pen-detail' }">
         <Grid3x3 class="icon" />
         <span>All Pens (Kandang)</span>
       </router-link>
@@ -21,10 +21,12 @@
         <span>Analytics</span>
       </router-link>
       
-      <div class="nav-item">
+      <div class="nav-item" @click="notifStore.showPanel = true">
         <Bell class="icon" />
         <span>Notifications</span>
-        <span class="notification-dot" v-if="hasUnread"></span>
+        <span class="notif-badge" v-if="notifStore.history.length > 0">
+          {{ notifStore.history.length }}
+        </span>
       </div>
     </nav>
     
@@ -38,10 +40,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { LayoutDashboard, Grid3x3, BarChart2, Bell, Settings } from 'lucide-vue-next'
+import { useNotifStore } from '@/stores/notif'
 
-const hasUnread = ref(true)
+const notifStore = useNotifStore()
 </script>
 
 <style scoped>
@@ -89,6 +91,7 @@ const hasUnread = ref(true)
   transition: all 0.2s ease;
   position: relative;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .nav-item:hover {
@@ -104,15 +107,28 @@ const hasUnread = ref(true)
 .icon {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
 }
 
-.notification-dot {
-  position: absolute;
-  right: 1rem;
-  width: 8px;
-  height: 8px;
-  background-color: var(--c-critical);
-  border-radius: 50%;
+.notif-badge {
+  margin-left: auto;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
 }
 
 .bottom-menu {

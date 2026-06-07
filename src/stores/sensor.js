@@ -1,49 +1,77 @@
 import { defineStore } from 'pinia'
 import { usePenStore } from './pens'
-import { ref as dbRef, onValue, off } from 'firebase/database'
-import { db } from '../config/firebase.js' 
+import { useNotifStore } from './notif'
+import { ref as dbRef, onValue } from 'firebase/database'
+import { db } from '../config/firebase.js'
+
 export const useSensorStore = defineStore('sensor', {
   state: () => ({
     isConnected: false,
-    unsubscribe: null, // Simpan reference untuk unsubscribe
+    unsubscribe: null,
+    // Simpan status terakhir tiap kandang agar tidak spam notifikasi
+    lastKnownStatus: {}
   }),
-  
+
   actions: {
-    // Fungsi ini mulai mendengarkan perubahan secara REAL-TIME
     connectWebSocket() {
-      // Cek apakah sudah ada listener aktif
       if (this.unsubscribe) {
-        console.warn('WebSocket sudah terhubung, skip connect')
+        console.warn('Listener sudah aktif, skip connect')
         return
       }
-      
-      // Kita langsung mengawasi folder /current_status di Firebase
-      const currentStatusRef = dbRef(db, 'current_status')
-      
-      // onValue akan MENGIRIMKAN DATA BARU INSTAN setiap kali ESP32 mengirim data
-      this.unsubscribe = onValue(currentStatusRef, (snapshot) => {
+
+      const penStore = usePenStore()
+      const notifStore = useNotifStore()
+
+      // Hanya mendengarkan /kandang — sumber data utama
+      const kandangRef = dbRef(db, 'kandang')
+      this.unsubscribe = onValue(kandangRef, (snapshot) => {
         this.isConnected = true
-        
         if (snapshot.exists()) {
           const data = snapshot.val()
-          const penStore = usePenStore()
-          
-          // Looping data (misal dari kandang_01, kandang_02, dst)
-          Object.keys(data).forEach(penId => {
-            // Lempar data terbaru ke file pens.js agar layar berkedip/terupdate
-            penStore.updatePenRealtimeData(penId, data[penId])
+          Object.entries(data).forEach(([penId, penData]) => {
+            if (penData.latest_reading) {
+              const status = penData.last_status || 'Normal'
+              const temp = penData.latest_reading.temperature
+              const hum = penData.latest_reading.humidity
+
+              penStore.updatePenRealtimeData(penId, {
+                temperature: temp,
+                humidity: hum,
+                last_status: status,
+                last_updated: penData.latest_reading.timestamp || null
+              })
+
+              // ── Notifikasi: hanya muncul jika status BERUBAH jadi Warning/Critical ──
+              const prevStatus = this.lastKnownStatus[penId]
+              if (status !== prevStatus) {
+                this.lastKnownStatus[penId] = status
+
+                if (status === 'Warning') {
+                  notifStore.push({
+                    type: 'warning',
+                    title: `⚠️ Peringatan — ${penId}`,
+                    message: `Suhu ${temp}°C / Kelembaban ${hum}% mendekati batas threshold!`
+                  })
+                } else if (status === 'Critical') {
+                  notifStore.push({
+                    type: 'critical',
+                    title: `🚨 KRITIS — ${penId}`,
+                    message: `Suhu ${temp}°C / Kelembaban ${hum}% melebihi batas aman! Segera periksa kandang.`
+                  })
+                }
+              }
+            }
           })
         }
       }, (error) => {
-        console.error('Koneksi Firebase terputus / error:', error)
+        console.error('Error listener /kandang:', error)
         this.isConnected = false
       })
     },
-    
-    // Berhenti mengawasi database (biasanya dipanggil saat user logout/tutup web)
+
     disconnectWebSocket() {
       if (this.unsubscribe) {
-        this.unsubscribe() // Panggil function untuk unsubscribe
+        this.unsubscribe()
         this.unsubscribe = null
         this.isConnected = false
       }

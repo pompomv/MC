@@ -89,11 +89,13 @@
     <div class="card table-card">
       <div class="card-header table-header">
         <h3>LOG DATA REAL-TIME TERKINI</h3>
+        <span class="log-count">{{ localHistory.length }} entri</span>
       </div>
       <div class="table-container">
         <table class="data-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>WAKTU SISTEM</th>
               <th>KANDANG ID</th>
               <th>SUHU (°C)</th>
@@ -102,19 +104,22 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="currentMetrics.temperature !== '--'">
-              <td>{{ currentMetrics.timestamp }}</td>
-              <td>{{ selectedPenId }}</td>
-              <td><strong>{{ currentMetrics.temperature }}°C</strong></td>
-              <td>{{ currentMetrics.humidity }}%</td>
-              <td>
-                <span :class="['badge', currentMetrics.status.toLowerCase()]">
-                  {{ currentMetrics.status.toUpperCase() }}
-                </span>
-              </td>
-            </tr>
+            <template v-if="localHistory.length > 0">
+              <tr v-for="(row, index) in [...localHistory].reverse()" :key="index" :class="{ 'row-critical': row.status === 'Critical' }">
+                <td class="text-muted">{{ localHistory.length - index }}</td>
+                <td>{{ row.time }}</td>
+                <td>{{ selectedPenId }}</td>
+                <td><strong>{{ row.temp }}°C</strong></td>
+                <td>{{ row.hum }}%</td>
+                <td>
+                  <span :class="['badge', (row.status || 'normal').toLowerCase()]">
+                    {{ (row.status || 'Normal').toUpperCase() }}
+                  </span>
+                </td>
+              </tr>
+            </template>
             <tr v-else>
-              <td colspan="5" class="text-center text-muted py-4">Membuka stream data Firebase Realtime Database...</td>
+              <td colspan="6" class="text-center text-muted py-4">Membuka stream data Firebase Realtime Database...</td>
             </tr>
           </tbody>
         </table>
@@ -170,18 +175,29 @@ const currentMetrics = computed(() => {
 watch(() => mainPen.value?.latest_reading, (newReading) => {
   if (newReading && typeof newReading.temperature === 'number' && typeof newReading.humidity === 'number') {
     const now = new Date()
-    
+    const pen = mainPen.value
+    let status = 'Normal'
+    if (pen && pen.thresholds) {
+      const t = newReading.temperature
+      const h = newReading.humidity
+      const th = pen.thresholds
+      status = (t < th.temp_min || t > th.temp_max || h < th.humidity_min || h > th.humidity_max) ? 'Critical' : 'Normal'
+    } else if (pen && pen.last_status) {
+      status = pen.last_status
+    }
+
     localHistory.value = [
       ...localHistory.value, 
       {
         time: now.toLocaleTimeString(),
         temp: newReading.temperature,
-        hum: newReading.humidity
+        hum: newReading.humidity,
+        status
       }
     ]
     
-    // Batasi hanya 20 data terakhir untuk performa
-    if (localHistory.value.length > 20) {
+    // Batasi hanya 50 data terakhir untuk performa
+    if (localHistory.value.length > 50) {
       localHistory.value.shift()
     }
   }
@@ -570,6 +586,28 @@ const humChartOptions = {
 }
 .badge.normal { background: #dcfce7; color: #15803d; }
 .badge.critical { background: #fee2e2; color: #b91c1c; }
+.badge.warning { background: #fef9c3; color: #854d0e; }
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.log-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+.row-critical {
+  background: #fff5f5;
+}
+.row-critical td { color: #b91c1c; }
+.text-muted { color: #94a3b8; }
+.text-center { text-align: center; }
+.py-4 { padding-top: 2rem; padding-bottom: 2rem; }
 
 @media (max-width: 1024px) {
   .top-grid { grid-template-columns: 1fr; }

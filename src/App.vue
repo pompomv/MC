@@ -1,31 +1,63 @@
 <template>
-  <div class="app-layout">
-    <SideBar />
-    
-    <div class="main-content">
-      <TopBar />
+  <div class="app-layout" v-if="authStore.isAuthReady">
+    <template v-if="$route.meta.requiresAuth">
+      <SideBar />
       
-      <main class="page-content">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
-      </main>
-    </div>
+      <div class="main-content">
+        <TopBar />
+        
+        <main class="page-content">
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </main>
+      </div>
+
+      <!-- Toast notifikasi global, tampil di halaman yang butuh auth -->
+      <ToastNotification />
+      <!-- Panel notifikasi (dibuka dari sidebar) -->
+      <NotificationPanel />
+    </template>
+    
+    <template v-else>
+      <!-- Layout khusus untuk login / halaman publik -->
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { watch, onMounted, onUnmounted } from 'vue'
 import { useSensorStore } from '@/stores/sensor'
+import { useAuthStore } from '@/stores/auth'
 import SideBar from '@/components/layout/SideBar.vue'
 import TopBar from '@/components/layout/TopBar.vue'
+import ToastNotification from '@/components/ToastNotification.vue'
+import NotificationPanel from '@/components/NotificationPanel.vue'
 
 const sensorStore = useSensorStore()
+const authStore = useAuthStore()
 
+// Pantau perubahan status user
+watch(() => authStore.user, (user) => {
+  if (user) {
+    sensorStore.connectWebSocket()
+  } else {
+    sensorStore.disconnectWebSocket()
+  }
+})
+
+// Ketika app pertama kali direfresh, jika user sudah login dari session sebelumnya, koneksikan
 onMounted(() => {
-  sensorStore.connectWebSocket()
+  if (authStore.user) {
+    sensorStore.connectWebSocket()
+  }
 })
 
 onUnmounted(() => {
